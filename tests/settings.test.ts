@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { defaults, parseSettings, parseWallpaper } from '../src/settings.ts'
+import { defaults, encodeBackup, maxBackupBytes, parseSettings, parseWallpaper, writeSettings } from '../src/settings.ts'
 
 test('backup preserves the quote, group order, selected engine and wallpaper', () => {
   const settings = defaults()
@@ -8,7 +8,43 @@ test('backup preserves the quote, group order, selected engine and wallpaper', (
   settings.groups.reverse()
   settings.provider = 'yandex'
   settings.wallpaper = { kind: 'preset', id: 'eclipse' }
-  assert.deepEqual(parseSettings(JSON.parse(JSON.stringify(settings))), settings)
+  assert.deepEqual(parseSettings(JSON.parse(encodeBackup(settings))), settings)
+})
+
+test('backup limit counts UTF-8 bytes', () => {
+  const settings = defaults()
+  settings.quote = 'я'.repeat(maxBackupBytes / 2)
+  assert.throws(() => encodeBackup(settings), /5 MiB/)
+})
+
+test('confirmed replacement restores corrupted settings under the same lock', async (t) => {
+  let saved: unknown = { version: 999 }
+  let lockHeld = false
+  Object.defineProperty(globalThis, 'browser', { configurable: true, value: {
+    storage: { local: {
+      get: async () => ({ settings: saved }),
+      set: async (values: { settings: unknown }) => {
+        assert.ok(lockHeld)
+        saved = values.settings
+      },
+    } },
+  } })
+  Object.defineProperty(navigator, 'locks', { configurable: true, value: {
+    request: async (name: string, action: () => Promise<unknown>) => {
+      assert.equal(name, 'violet-start-settings')
+      lockHeld = true
+      try { return await action() } finally { lockHeld = false }
+    },
+  } })
+  t.after(() => {
+    Reflect.deleteProperty(globalThis, 'browser')
+    Reflect.deleteProperty(navigator, 'locks')
+  })
+  await assert.rejects(writeSettings(current => ({ ...current, quote: 'Edited' })), /version/)
+  assert.deepEqual(saved, { version: 999 })
+  const backup = { ...defaults(), quote: 'Recovered' }
+  assert.deepEqual(await writeSettings(backup), backup)
+  assert.deepEqual(saved, backup)
 })
 
 test('unknown version, engine, duplicate IDs and dangerous links are rejected', () => {

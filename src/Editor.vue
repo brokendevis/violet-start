@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import type { Group } from './defaults'
 import {
-  checkWallpaper, editableContent, maxBackupBytes, parseSettings, readSettings, readWallpaper, type Settings,
+  checkWallpaper, editableContent, encodeBackup, maxBackupBytes, parseSettings, readSettings, readWallpaper, type Settings,
   wallpapers, wallpaperUrl, writeSettings,
 } from './settings'
 
@@ -64,7 +64,7 @@ async function exportBackup() {
   error.value = ''
   try {
     const current = await readSettings()
-    const backup = new Blob([JSON.stringify(current, null, 2)], { type: 'application/json' })
+    const backup = new Blob([encodeBackup(current)], { type: 'application/json' })
     const url = URL.createObjectURL(backup)
     const download = document.createElement('a')
     download.href = url
@@ -87,7 +87,7 @@ async function importBackup(event: Event) {
     const imported = parseSettings(JSON.parse(await file.text()))
     await checkWallpaper(imported.wallpaper)
     if (!window.confirm('Replace saved settings and discard any unsaved edits?')) return
-    const saved = await writeSettings(() => imported)
+    const saved = await writeSettings(imported)
     emit('saved', saved)
     emit('close')
   } catch (cause) {

@@ -17,6 +17,14 @@ export interface Settings {
 export const maxImageBytes = 2 * 1024 * 1024
 export const maxBackupBytes = 5 * 1024 * 1024
 
+export function encodeBackup(settings: Settings) {
+  const json = JSON.stringify(settings)
+  if (new TextEncoder().encode(json).byteLength > maxBackupBytes) {
+    throw new Error('Settings exceed the 5 MiB backup limit.')
+  }
+  return json
+}
+
 export function defaults(): Settings {
   return {
     version: 1,
@@ -107,9 +115,10 @@ export async function readSettings() {
   return stored === undefined ? defaults() : parseSettings(stored)
 }
 
-export async function writeSettings(update: (current: Settings) => Settings) {
+export async function writeSettings(update: Settings | ((current: Settings) => Settings)) {
   return navigator.locks.request('violet-start-settings', async () => {
-    const next = parseSettings(update(await readSettings()))
+    const next = parseSettings(typeof update === 'function' ? update(await readSettings()) : update)
+    encodeBackup(next)
     await browser.storage.local.set({ [settingsKey]: next })
     return next
   })

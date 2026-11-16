@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import Editor from './Editor.vue'
-import { nextTick, onMounted, onUnmounted, ref } from 'vue'
-import { isProvider, providers, searchUrl } from './search'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { isProvider, providers, searchUrl, type Provider } from './search'
 import { defaults, readSettings, settingsKey, wallpaperUrl, writeSettings } from './settings'
 
 const settings = ref(defaults())
 const query = ref('')
 const error = ref('')
-const choosingProvider = ref(false)
+const loadError = ref('')
+const pendingProvider = ref<Provider | null>(null)
+const selectedProvider = computed(() => pendingProvider.value ?? settings.value.provider)
+const providerLabels = { firefox: 'Fx', google: 'G', yandex: 'Я', duckduckgo: 'DDG' }
+let selection = 0
 const editing = ref(false)
 const editButton = ref<HTMLButtonElement>()
 
@@ -20,8 +24,9 @@ async function closeEditor() {
 async function refreshSettings() {
   try {
     settings.value = await readSettings()
+    loadError.value = ''
   } catch {
-    error.value = 'Could not load saved settings.'
+    loadError.value = 'Could not load saved settings. You can restore a backup in Edit.'
   }
 }
 
@@ -39,21 +44,22 @@ async function chooseProvider(event: Event) {
   const select = event.target as HTMLSelectElement
   const provider = select.value
   if (!isProvider(provider)) return
-  choosingProvider.value = true
+  const request = ++selection
+  pendingProvider.value = provider
   error.value = ''
   try {
-    settings.value = await writeSettings(current => ({ ...current, provider }))
+    const saved = await writeSettings(current => ({ ...current, provider }))
+    if (request === selection) settings.value = saved
   } catch {
-    select.value = settings.value.provider
-    error.value = 'Could not save the search engine.'
+    if (request === selection) error.value = 'Could not save the search engine.'
   } finally {
-    choosingProvider.value = false
+    if (request === selection) pendingProvider.value = null
   }
 }
 
 async function search() {
   const text = query.value.trim()
-  if (!text || choosingProvider.value) return
+  if (!text || pendingProvider.value) return
   error.value = ''
   try {
     const provider = settings.value.provider
@@ -77,13 +83,16 @@ const placeholder = browser.i18n.getUILanguage().toLowerCase().startsWith('ru')
       <button ref="editButton" class="edit-button" type="button" @click="editing = true">✎ Edit</button>
     </header>
     <form class="search" role="search" @submit.prevent="search">
-      <select :value="settings.provider" aria-label="Search engine" :disabled="choosingProvider" @change="chooseProvider">
-        <option v-for="(label, provider) in providers" :key="provider" :value="provider">{{ label }}</option>
-      </select>
       <input v-model="query" type="search" :placeholder="placeholder" :aria-label="placeholder">
-      <button type="submit" aria-label="Search" :disabled="choosingProvider">↵</button>
+      <span class="search-engine" :title="`Search engine: ${providers[selectedProvider]}`">
+        <span aria-hidden="true">{{ providerLabels[selectedProvider] }} ▾</span>
+        <select :value="selectedProvider" aria-label="Search engine" @change="chooseProvider">
+          <option v-for="(label, provider) in providers" :key="provider" :value="provider">{{ label }}</option>
+        </select>
+      </span>
+      <button type="submit" aria-label="Search" :disabled="pendingProvider !== null">↵</button>
     </form>
-    <p v-if="error" class="error" role="alert">{{ error }}</p>
+    <p v-if="loadError || error" class="error" role="alert">{{ loadError || error }}</p>
     <div class="groups">
       <fieldset v-for="group in settings.groups" :key="group.id" class="group">
         <legend>{{ group.name }}</legend>
