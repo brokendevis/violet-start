@@ -1,5 +1,5 @@
 # Violet Start
 
-Violet Start is a customizable Firefox new tab extension in development. It pairs web search with curated links for security tools, reconnaissance, analysis, practice labs, and reference material in a violet terminal-inspired interface.
+Violet Start — проект расширения для новой вкладки Firefox. На ней будут веб-поиск и готовые подборки ссылок на инструменты, ресурсы для разведки и анализа, учебные лаборатории и справочники по информационной безопасности. Интерфейс оформлен в фиолетовых тонах в стиле терминала.
 
-The planned editor lets you change the quote and add, edit, or reorder groups and links.
+В редакторе можно будет заменить цитату, добавлять и редактировать группы и ссылки, а также менять их порядок.
