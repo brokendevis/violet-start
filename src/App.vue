@@ -1,12 +1,21 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import Editor from './Editor.vue'
+import { nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { isProvider, providers, searchUrl } from './search'
-import { defaults, readSettings, settingsKey, writeSettings } from './settings'
+import { defaults, readSettings, settingsKey, wallpaperUrl, writeSettings } from './settings'
 
 const settings = ref(defaults())
 const query = ref('')
 const error = ref('')
 const choosingProvider = ref(false)
+const editing = ref(false)
+const editButton = ref<HTMLButtonElement>()
+
+async function closeEditor() {
+  editing.value = false
+  await nextTick()
+  editButton.value?.focus()
+}
 
 async function refreshSettings() {
   try {
@@ -61,11 +70,11 @@ const placeholder = browser.i18n.getUILanguage().toLowerCase().startsWith('ru')
 </script>
 
 <template>
-  <div class="wallpaper" aria-hidden="true" style="background-image: url(wallpapers/shadow.webp)"></div>
+  <div class="wallpaper" aria-hidden="true" :style="{ backgroundImage: `url(${wallpaperUrl(settings.wallpaper)})` }"></div>
   <main class="workspace" aria-label="Violet Start">
     <header class="workspace-header">
-      <p class="quote">{{ settings.quote }}</p>
-      <button class="edit-button" type="button" disabled>✎ Edit</button>
+      <p v-if="settings.quote.trim()" class="quote">{{ settings.quote }}</p>
+      <button ref="editButton" class="edit-button" type="button" @click="editing = true">✎ Edit</button>
     </header>
     <form class="search" role="search" @submit.prevent="search">
       <select :value="settings.provider" aria-label="Search engine" :disabled="choosingProvider" @change="chooseProvider">
@@ -86,4 +95,5 @@ const placeholder = browser.i18n.getUILanguage().toLowerCase().startsWith('ru')
       </fieldset>
     </div>
   </main>
+  <Editor v-if="editing" :settings="settings" @saved="settings = $event" @close="closeEditor" />
 </template>

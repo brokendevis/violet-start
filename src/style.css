@@ -111,3 +111,46 @@ a { color: inherit; }
   .groups { grid-template-columns: 1fr; gap: .9rem; margin-top: 1.5rem; }
   .wallpaper { opacity: .5; }
 }
+
+.editor {
+  position: fixed;
+  inset: 0 0 0 auto;
+  margin: 0;
+  width: min(100%, 35rem);
+  max-width: 100%;
+  height: 100%;
+  max-height: 100%;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: #120b18;
+  color: inherit;
+}
+.editor::backdrop { background: #07040980; }
+.editor form { display: flex; flex-direction: column; height: 100%; }
+.editor-header, .editor-footer { padding: 1rem 1.25rem; }
+.editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #744987;
+}
+.editor-header h1, .groups-heading h2 { font-size: 1.1rem; margin: 0; color: var(--accent); }
+.editor-body { padding: 1rem 1.25rem; flex: 1; overflow: auto; }
+.editor > form > .error { margin: .75rem 1.25rem 0; }
+.editor-footer { border-top: 1px solid #744987; }
+.editor-footer .primary { background: #382043; }
+.field { display: grid; gap: .35rem; margin-bottom: .65rem; }
+.field input, .field textarea { width: 100%; padding: .45rem .6rem; resize: vertical; }
+.field small { color: var(--muted); }
+.row { display: flex; gap: .5rem; flex-wrap: wrap; }
+.groups-heading { justify-content: space-between; align-items: center; margin: 1.5rem 0 .75rem; }
+.editor-group, .editor-wallpapers { margin: 0 0 1rem; border: 1px solid #744987; min-width: 0; }
+.editor-group legend, .editor-wallpapers legend { color: var(--accent); padding-inline: .35rem; }
+.editor-link { border-top: 1px solid #4b2d54; padding-top: .65rem; margin-top: .65rem; }
+.add-link { margin-top: .75rem; }
+.wallpaper-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; margin-bottom: .75rem; }
+.wallpaper-grid button { min-width: 0; padding: .2rem; }
+.wallpaper-grid button[aria-pressed="true"] { background: #382043; border-color: #edb6ff; }
+.wallpaper-grid img, .custom-preview { display: block; width: 100%; aspect-ratio: 16 / 8; object-fit: cover; }
+.custom-preview { width: min(100%, 12rem); }
