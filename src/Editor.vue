@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import type { Group } from './defaults'
 import {
-  editableContent, parseSettings, readWallpaper, type Settings,
+  checkWallpaper, editableContent, maxBackupBytes, parseSettings, readSettings, readWallpaper, type Settings,
   wallpapers, wallpaperUrl, writeSettings,
 } from './settings'
 
@@ -52,6 +52,44 @@ async function upload(event: Event) {
   error.value = ''
   try {
     draft.value.wallpaper = await readWallpaper(file)
+  } catch (cause) {
+    error.value = message(cause)
+  } finally {
+    input.value = ''
+    busy.value = false
+  }
+}
+
+async function exportBackup() {
+  error.value = ''
+  try {
+    const current = await readSettings()
+    const backup = new Blob([JSON.stringify(current, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(backup)
+    const download = document.createElement('a')
+    download.href = url
+    download.download = 'violet-start-settings.json'
+    download.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  } catch (cause) {
+    error.value = message(cause)
+  }
+}
+
+async function importBackup(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  busy.value = true
+  error.value = ''
+  try {
+    if (file.size > maxBackupBytes) throw new Error('Backup is larger than 5 MiB.')
+    const imported = parseSettings(JSON.parse(await file.text()))
+    await checkWallpaper(imported.wallpaper)
+    if (!window.confirm('Replace saved settings and discard any unsaved edits?')) return
+    const saved = await writeSettings(() => imported)
+    emit('saved', saved)
+    emit('close')
   } catch (cause) {
     error.value = message(cause)
   } finally {
@@ -130,6 +168,13 @@ function move<T>(items: T[], index: number, offset: number) {
             </div>
           </div>
           <button type="button" class="add-link" @click="addLink(group)">+ Link</button>
+        </fieldset>
+        <fieldset class="editor-group">
+          <legend>Backup</legend>
+          <button type="button" :disabled="busy" @click="exportBackup">Export saved settings</button>
+          <label class="field backup-input">Import backup
+            <input type="file" accept=".json,application/json" :disabled="busy" @change="importBackup">
+          </label>
         </fieldset>
       </section>
       <footer class="editor-footer row">

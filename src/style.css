@@ -154,3 +154,5 @@ a { color: inherit; }
 .wallpaper-grid button[aria-pressed="true"] { background: #382043; border-color: #edb6ff; }
 .wallpaper-grid img, .custom-preview { display: block; width: 100%; aspect-ratio: 16 / 8; object-fit: cover; }
 .custom-preview { width: min(100%, 12rem); }
+
+.backup-input { margin: .65rem 0 0; }
