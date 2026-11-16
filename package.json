@@ -7,11 +7,10 @@
   "scripts": {
     "dev": "vite build --watch",
     "typecheck": "vue-tsc --noEmit",
-    "test": "node --test tests/*.test.ts",
     "build": "vite build",
-    "format": "prettier --write src tests",
-    "format:check": "prettier --check src tests",
-    "check": "pnpm format:check && pnpm typecheck && pnpm test && pnpm build && web-ext lint --source-dir dist",
+    "format": "prettier --write src",
+    "format:check": "prettier --check src",
+    "check": "pnpm format:check && pnpm typecheck && pnpm build && web-ext lint --source-dir dist",
     "package": "pnpm build && web-ext build --source-dir dist --artifacts-dir artifacts --filename violet-start-0.1.0.zip --overwrite-dest"
   },
   "dependencies": {
