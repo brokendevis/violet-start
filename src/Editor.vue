@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, toRaw } from 'vue'
 import type { Group } from './defaults'
-import {
-  checkWallpaper, editableContent, encodeBackup, maxBackupBytes, parseSettings, readSettings, readWallpaper, type Settings,
-  wallpapers, wallpaperUrl, writeSettings,
-} from './settings'
+import { encodeBackup, maxBackupBytes, parseSettings, readSettings } from './settings'
+import { editableContent, useSettingsStore } from './settingsStore'
+import { checkWallpaper, readWallpaper, wallpapers, wallpaperUrl } from './wallpaper'
 
-const props = defineProps<{ settings: Settings }>()
-const emit = defineEmits<{ close: []; saved: [settings: Settings] }>()
-const draft = ref(parseSettings(props.settings))
+const store = useSettingsStore()
+const emit = defineEmits<{ close: [] }>()
+const draft = ref(structuredClone(toRaw(store.settings)))
 const baseline = JSON.stringify(editableContent(draft.value))
 const dialog = ref<HTMLDialogElement>()
 const error = ref('')
@@ -21,17 +20,12 @@ function message(cause: unknown) {
 }
 
 async function save() {
+  if (busy.value) return
   busy.value = true
   error.value = ''
   try {
-    const content = editableContent(draft.value)
-    const saved = await writeSettings(current => {
-      if (JSON.stringify(editableContent(current)) !== baseline) {
-        throw new Error('Another tab changed these settings. Reopen Edit before saving.')
-      }
-      return { ...current, ...content }
-    })
-    emit('saved', saved)
+    const content = structuredClone(editableContent(toRaw(draft.value)))
+    await store.saveEdits(content, baseline)
     emit('close')
   } catch (cause) {
     error.value = message(cause)
@@ -44,20 +38,26 @@ function cancel() {
   if (!busy.value) emit('close')
 }
 
-async function upload(event: Event) {
-  const input = event.target as HTMLInputElement
+async function withSelectedFile(event: Event, action: (file: File) => Promise<void>) {
+  const input = event.currentTarget as HTMLInputElement
   const file = input.files?.[0]
-  if (!file) return
+  if (!file || busy.value) return
   busy.value = true
   error.value = ''
   try {
-    draft.value.wallpaper = await readWallpaper(file)
+    await action(file)
   } catch (cause) {
     error.value = message(cause)
   } finally {
     input.value = ''
     busy.value = false
   }
+}
+
+function upload(event: Event) {
+  return withSelectedFile(event, async (file) => {
+    draft.value.wallpaper = await readWallpaper(file)
+  })
 }
 
 async function exportBackup() {
@@ -76,26 +76,15 @@ async function exportBackup() {
   }
 }
 
-async function importBackup(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
-  busy.value = true
-  error.value = ''
-  try {
+function importBackup(event: Event) {
+  return withSelectedFile(event, async (file) => {
     if (file.size > maxBackupBytes) throw new Error('Backup is larger than 5 MiB.')
     const imported = parseSettings(JSON.parse(await file.text()))
     await checkWallpaper(imported.wallpaper)
     if (!window.confirm('Replace saved settings and discard any unsaved edits?')) return
-    const saved = await writeSettings(imported)
-    emit('saved', saved)
+    await store.restore(imported)
     emit('close')
-  } catch (cause) {
-    error.value = message(cause)
-  } finally {
-    input.value = ''
-    busy.value = false
-  }
+  })
 }
 
 function addGroup() {
@@ -123,8 +112,9 @@ function move<T>(items: T[], index: number, offset: number) {
         <button type="button" aria-label="Close editor" :disabled="busy" @click="cancel">×</button>
       </header>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
-      <section class="editor-body">
-        <label class="field">Quote
+      <section class="editor-body" :inert="busy">
+        <label class="field"
+          >Quote
           <textarea v-model="draft.quote" rows="3" autofocus></textarea>
         </label>
 
@@ -136,21 +126,29 @@ function move<T>(items: T[], index: number, offset: number) {
               :key="id"
               type="button"
               :aria-pressed="draft.wallpaper.kind === 'preset' && draft.wallpaper.id === id"
-              :disabled="busy"
               @click="draft.wallpaper = { kind: 'preset', id }"
-            ><img :src="wallpaperUrl({ kind: 'preset', id })" alt="">{{ label }}</button>
+            >
+              <img :src="wallpaperUrl({ kind: 'preset', id })" alt="" />{{ label }}
+            </button>
           </div>
-          <label class="field">Upload wallpaper <small>PNG, JPEG or WebP, up to 2 MiB</small>
-            <input type="file" accept="image/png,image/jpeg,image/webp" :disabled="busy" @change="upload">
+          <label class="field"
+            >Upload wallpaper <small>PNG, JPEG or WebP, up to 2 MiB and 24 megapixels</small>
+            <input type="file" accept="image/png,image/jpeg,image/webp" @change="upload" />
           </label>
-          <img v-if="draft.wallpaper.kind === 'custom'" class="custom-preview" :src="wallpaperUrl(draft.wallpaper)" alt="Custom wallpaper preview">
+          <img
+            v-if="draft.wallpaper.kind === 'custom'"
+            class="custom-preview"
+            :src="wallpaperUrl(draft.wallpaper)"
+            alt="Custom wallpaper preview"
+          />
         </fieldset>
 
         <fieldset class="editor-group">
           <legend>Backup</legend>
-          <button type="button" :disabled="busy" @click="exportBackup">Export saved settings</button>
-          <label class="field backup-input">Import backup
-            <input type="file" accept=".json,application/json" :disabled="busy" @change="importBackup">
+          <button type="button" @click="exportBackup">Export saved settings</button>
+          <label class="field backup-input"
+            >Import backup
+            <input type="file" accept=".json,application/json" @change="importBackup" />
           </label>
         </fieldset>
 
@@ -160,18 +158,48 @@ function move<T>(items: T[], index: number, offset: number) {
         </div>
         <fieldset v-for="(group, groupIndex) in draft.groups" :key="group.id" class="editor-group">
           <legend>{{ group.name || 'Group' }}</legend>
-          <label class="field">Group name <input v-model="group.name" required></label>
+          <label class="field">Group name <input v-model="group.name" required /></label>
           <div class="row">
-            <button type="button" aria-label="Move group up" :disabled="groupIndex === 0" @click="move(draft.groups, groupIndex, -1)">↑</button>
-            <button type="button" aria-label="Move group down" :disabled="groupIndex === draft.groups.length - 1" @click="move(draft.groups, groupIndex, 1)">↓</button>
+            <button
+              type="button"
+              aria-label="Move group up"
+              :disabled="groupIndex === 0"
+              @click="move(draft.groups, groupIndex, -1)"
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              aria-label="Move group down"
+              :disabled="groupIndex === draft.groups.length - 1"
+              @click="move(draft.groups, groupIndex, 1)"
+            >
+              ↓
+            </button>
             <button type="button" @click="draft.groups.splice(groupIndex, 1)">Remove group</button>
           </div>
           <div v-for="(link, linkIndex) in group.links" :key="link.id" class="editor-link">
-            <label class="field">Link title <input v-model="link.title" required></label>
-            <label class="field">Link URL <input v-model="link.url" inputmode="url" required></label>
+            <label class="field">Link title <input v-model="link.title" required /></label>
+            <label class="field"
+              >Link URL <input v-model="link.url" inputmode="url" required
+            /></label>
             <div class="row">
-              <button type="button" aria-label="Move link up" :disabled="linkIndex === 0" @click="move(group.links, linkIndex, -1)">↑</button>
-              <button type="button" aria-label="Move link down" :disabled="linkIndex === group.links.length - 1" @click="move(group.links, linkIndex, 1)">↓</button>
+              <button
+                type="button"
+                aria-label="Move link up"
+                :disabled="linkIndex === 0"
+                @click="move(group.links, linkIndex, -1)"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                aria-label="Move link down"
+                :disabled="linkIndex === group.links.length - 1"
+                @click="move(group.links, linkIndex, 1)"
+              >
+                ↓
+              </button>
               <button type="button" @click="group.links.splice(linkIndex, 1)">Remove link</button>
             </div>
           </div>

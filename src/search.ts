@@ -1,8 +1,13 @@
 export const providers = {
-  firefox: 'Firefox default',
-  google: 'Google',
-  yandex: 'Yandex',
-  duckduckgo: 'DuckDuckGo',
+  firefox: { label: 'Firefox default', short: 'Fx' },
+  google: { label: 'Google', short: 'G', address: 'https://www.google.com/search', parameter: 'q' },
+  yandex: { label: 'Yandex', short: 'Я', address: 'https://ya.ru/search/', parameter: 'text' },
+  duckduckgo: {
+    label: 'DuckDuckGo',
+    short: 'DDG',
+    address: 'https://duckduckgo.com/',
+    parameter: 'q',
+  },
 } as const
 
 export type Provider = keyof typeof providers
@@ -11,15 +16,9 @@ export function isProvider(value: unknown): value is Provider {
   return typeof value === 'string' && Object.hasOwn(providers, value)
 }
 
-const destinations = {
-  google: ['https://www.google.com/search', 'q'],
-  yandex: ['https://ya.ru/search/', 'text'],
-  duckduckgo: ['https://duckduckgo.com/', 'q'],
-} as const
-
 export function searchUrl(provider: Exclude<Provider, 'firefox'>, query: string) {
-  const [address, key] = destinations[provider]
+  const { address, parameter } = providers[provider]
   const url = new URL(address)
-  url.searchParams.set(key, query)
+  url.searchParams.set(parameter, query)
   return url.href
 }
