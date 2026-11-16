@@ -70,7 +70,7 @@ const placeholder = browser.i18n.getUILanguage().toLowerCase().startsWith('ru')
 </script>
 
 <template>
-  <div class="wallpaper" aria-hidden="true" :style="{ backgroundImage: `url(${wallpaperUrl(settings.wallpaper)})` }"></div>
+  <div class="wallpaper" :class="{ 'wallpaper-custom': settings.wallpaper.kind === 'custom' }" aria-hidden="true" :style="{ backgroundImage: `url(${wallpaperUrl(settings.wallpaper)})` }"></div>
   <main class="workspace" aria-label="Violet Start">
     <header class="workspace-header">
       <p v-if="settings.quote.trim()" class="quote">{{ settings.quote }}</p>

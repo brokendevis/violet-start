@@ -34,7 +34,15 @@ a { color: inherit; }
   z-index: -1;
 }
 
+.wallpaper-custom::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #09050de8, #09050dba 64%, #09050d55);
+}
+
 .workspace {
+  font-size: clamp(.95rem, 1.17vw, 1.16rem);
   width: min(64%, 65rem);
   padding: 0 clamp(1.25rem, 3.8vw, 4.25rem) 4rem;
   margin-top: clamp(3.5rem, 12vh, 9rem);
@@ -76,7 +84,7 @@ a { color: inherit; }
 .search input::placeholder { color: var(--muted); }
 .search button { border: 0; background: transparent; padding-inline: 1rem; }
 .search button:hover { background: #291633; }
-.search select { max-width: 8rem; border: 0; border-right: 1px solid #744987; padding-inline: .45rem; }
+.search select { max-width: 54%; border: 0; border-right: 1px solid #744987; padding-inline: .45rem; }
 .groups {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -88,12 +96,12 @@ a { color: inherit; }
   min-width: 0;
   margin: 0;
   border: 1px solid var(--line);
-  padding: .55rem 1rem .9rem;
+  padding: .65rem 1rem 1rem;
   background: #0d0810e8;
 }
 .group legend { padding-inline: .48rem; color: var(--accent); font-weight: 700; }
 .group ul { padding: 0; margin: 0; list-style: none; }
-.group li + li { margin-top: .65rem; }
+.group li + li { margin-top: .72rem; }
 .group a { text-decoration: none; overflow-wrap: anywhere; }
 .group a:hover { color: var(--accent); text-decoration: underline; }
 .group .marker { margin-right: .55em; color: var(--accent); }

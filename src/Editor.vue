@@ -146,6 +146,14 @@ function move<T>(items: T[], index: number, offset: number) {
           <img v-if="draft.wallpaper.kind === 'custom'" class="custom-preview" :src="wallpaperUrl(draft.wallpaper)" alt="Custom wallpaper preview">
         </fieldset>
 
+        <fieldset class="editor-group">
+          <legend>Backup</legend>
+          <button type="button" :disabled="busy" @click="exportBackup">Export saved settings</button>
+          <label class="field backup-input">Import backup
+            <input type="file" accept=".json,application/json" :disabled="busy" @change="importBackup">
+          </label>
+        </fieldset>
+
         <div class="row groups-heading">
           <h2>Groups</h2>
           <button type="button" @click="addGroup">+ Group</button>
@@ -168,13 +176,6 @@ function move<T>(items: T[], index: number, offset: number) {
             </div>
           </div>
           <button type="button" class="add-link" @click="addLink(group)">+ Link</button>
-        </fieldset>
-        <fieldset class="editor-group">
-          <legend>Backup</legend>
-          <button type="button" :disabled="busy" @click="exportBackup">Export saved settings</button>
-          <label class="field backup-input">Import backup
-            <input type="file" accept=".json,application/json" :disabled="busy" @change="importBackup">
-          </label>
         </fieldset>
       </section>
       <footer class="editor-footer row">
